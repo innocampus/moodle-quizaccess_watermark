@@ -1,0 +1,15 @@
+diff --git a/question/engine/questionattempt.php b/question/engine/questionattempt.php
+index ba41f67118a..f2153bf9fbf 100644
+--- a/question/engine/questionattempt.php
++++ b/question/engine/questionattempt.php
+@@ -1260,6 +1260,10 @@ class question_attempt {
+         } else {
+             $submitteddata += $this->get_expected_data($expected, $postdata, '');
+         }
++
++        $submitteddata = quizaccess_watermark\manager::clean_answer_data($this->usageid, $submitteddata); // added for quizaccess_watermark
++        quizaccess_watermark\manager::save_post_data($this->usageid, $postdata); // added for quizaccess_watermark
++
+         return $submitteddata;
+     }
+ 

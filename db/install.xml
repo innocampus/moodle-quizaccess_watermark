@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="mod/quiz/accessrule/watermark/db" VERSION="2021020300" COMMENT="XMLDB file for Moodle mod/quiz/accessrule/watermark"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="../../../../../lib/xmldb/xmldb.xsd">
+  <TABLES>
+    <TABLE NAME="quizaccess_watermark" COMMENT="quiz watermark">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="quizid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="watermark" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="quizid" TYPE="foreign-unique" FIELDS="quizid" REFTABLE="quiz" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
+    <TABLE NAME="quizaccess_watermark_attempt" COMMENT="quiz watermark attempts">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="hash" TYPE="char" LENGTH="200" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="quizid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="quizattemptid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="usageid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="compact" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="quizid" TYPE="foreign" FIELDS="quizid" REFTABLE="quiz" REFFIELDS="id"/>
+        <KEY NAME="usageid" TYPE="foreign-unique" FIELDS="usageid" REFTABLE="question_usages" REFFIELDS="id"/>
+        <KEY NAME="userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="hash" UNIQUE="false" FIELDS="hash"/>
+        <INDEX NAME="compact" UNIQUE="false" FIELDS="compact"/>
+      </INDEXES>
+    </TABLE>
+    <TABLE NAME="quizaccess_watermark_data" COMMENT="quiz watermark attempt data">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="usageid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+        <FIELD NAME="json" TYPE="binary" NOTNULL="true" SEQUENCE="false"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+        <KEY NAME="usageid" TYPE="foreign" FIELDS="usageid" REFTABLE="question_usages" REFFIELDS="id"/>
+      </KEYS>
+    </TABLE>
+  </TABLES>
+</XMLDB>

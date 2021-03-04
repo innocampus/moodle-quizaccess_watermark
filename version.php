@@ -27,4 +27,4 @@ defined('MOODLE_INTERNAL') || die();
 $plugin->version = 2021030300;
 $plugin->requires = 2020061504;
 $plugin->component = 'quizaccess_watermark';
-$plugin->maturity = MATURITY_STABLE;
+$plugin->maturity = MATURITY_ALPHA;

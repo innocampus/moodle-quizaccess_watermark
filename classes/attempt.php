@@ -139,15 +139,17 @@ class attempt {
         $found = [];
         foreach ($this->data as $step) {
             foreach ($step->data as $key => $answer) {
-                foreach (self::find_watermarks_in_string($answer) as $watermark) {
-                    if (substr($this->ownhash, 0, strlen($watermark)) != $watermark) {
-                        $hit = self::find_attempt_hash($watermark, $this->get_quiz_id());
-                        $found[] = [
-                            'date' => $step->time,
-                            'answer' => $answer,
-                            'watermark' => $watermark,
-                            'hit' => $hit,
-                        ];
+                if (is_string($answer)) {
+                    foreach (self::find_watermarks_in_string($answer) as $watermark) {
+                        if (substr($this->ownhash, 0, strlen($watermark)) != $watermark) {
+                            $hit = self::find_attempt_hash($watermark, $this->get_quiz_id());
+                            $found[] = [
+                                    'date' => $step->time,
+                                    'answer' => $answer,
+                                    'watermark' => $watermark,
+                                    'hit' => $hit,
+                            ];
+                        }
                     }
                 }
             }

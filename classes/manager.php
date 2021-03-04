@@ -115,7 +115,11 @@ class manager {
         if (isset($_POST['quizaccess_watermark_enable_clean']) || self::watermark_enabled($usageid)) {
             $new = [];
             foreach ($data as $key => $value) {
-                $replaced = preg_replace('/[\x{2060}-\x{2064}\x{E0060}-\x{E007F}]/u', '', $value);
+                if (is_string($value)) {
+                    $replaced = preg_replace('/[\x{2060}-\x{2064}\x{E0060}-\x{E007F}]/u', '', $value);
+                } else {
+                    $replaced = $value;
+                }
                 $new[$key] = ($replaced !== null) ? $replaced : $value; // Keep value as it is when an error occurs.
             }
             return $new;

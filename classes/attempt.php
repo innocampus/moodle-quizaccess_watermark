@@ -55,7 +55,7 @@ class attempt {
         global $DB;
 
         $this->wmattempt = $wmattempt;
-        $this->ownhash = manager::get_user_hash(false, $this->wmattempt->quizid, $this->wmattempt->userid);
+        $this->ownhash = $this->wmattempt->hash;
 
         $records = $DB->get_records('quizaccess_watermark_data', ['usageid' => $wmattempt->usageid]);
         if ($wmattempt->compact == 1 && count($records) > 0) {

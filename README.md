@@ -9,7 +9,7 @@ We will probably not maintain this repository in the long-term.**
 
 ## Requirements
 
-This plugin requires Moodle 3.9+.
+This plugin requires Moodle 3.9+ and PHP 7.4+.
 
 ## Installation
 

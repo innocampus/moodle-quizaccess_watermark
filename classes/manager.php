@@ -129,19 +129,41 @@ class manager {
     }
 
     /**
-     * Get a hash to identify the user.
+     * Get a string with hexadecimal digits to identify the user.
      *
-     * Using the old MD5 here should be fine as we do not use it for cryptography.
-     * We need the properties uniformity, efficiency and it must be deterministic.
+     * @param bool $isteacher
      * @param int $quizid
      * @param int $userid
+     * @param bool $forcenew
      * @return string
      */
-    public static function get_user_hash(bool $isteacher, int $quizid, int $userid) {
+    public static function get_user_hash(bool $isteacher, int $quizid, int $userid, bool $forcenew = false) {
+        global $SESSION, $DB;
         if ($isteacher) {
             return md5($userid);
         }
-        return md5("{$quizid}_{$userid}");
+        if (!$forcenew) {
+            // Try to avoid a db query.
+            if (isset($SESSION->quizaccess_watermark[$quizid])) {
+                return $SESSION->quizaccess_watermark[$quizid];
+            }
+            $records = $DB->get_records_sql('
+                SELECT hash
+                FROM {quizaccess_watermark_attempt}
+                WHERE userid = :user AND quizid = :quiz
+                ORDER BY timecreated DESC', ['user' => $userid, 'quiz' => $quizid], 0, 1);
+            if (count($records)) {
+                $hash = current($records);
+                $SESSION->quizaccess_watermark[$quizid] = $hash;
+                return $hash;
+            }
+        }
+
+        // Generate 64 bit unsigned int.
+        $rand = str_pad(dechex(rand(0, 0xffff_ffff)), 8, '0', STR_PAD_LEFT);
+        $rand .= str_pad(dechex(rand(0, 0xffff_ffff)), 8, '0', STR_PAD_LEFT);
+        $SESSION->quizaccess_watermark[$quizid] = $rand;
+        return $rand;
     }
 
     /**
@@ -158,7 +180,7 @@ class manager {
         }
 
         $data = new \stdClass();
-        $data->hash = self::get_user_hash(false, $attempt->quiz, $attempt->userid);
+        $data->hash = self::get_user_hash(false, $attempt->quiz, $attempt->userid, true);
         $data->quizid = $attempt->quiz;
         $data->quizattemptid = $attempt->id;
         $data->usageid = $attempt->uniqueid;

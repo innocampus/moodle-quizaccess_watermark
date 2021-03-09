@@ -83,6 +83,12 @@ class manager {
                 return;
             }
 
+            // Only quiz autosave and processattempt.
+            if (substr($_SERVER['SCRIPT_FILENAME'], -17) !== 'autosave.ajax.php' &&
+                substr($_SERVER['SCRIPT_FILENAME'], -18) !== 'processattempt.php') {
+                return;
+            }
+
             if ($postdata === null) {
                 $postdata = $_POST;
             }

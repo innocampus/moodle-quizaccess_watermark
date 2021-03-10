@@ -30,7 +30,7 @@ $string['watermark:manage_quiz_settings'] = 'Manage watermark quiz settings';
 $string['watermark:view_reports'] = 'View watermark reports';
 
 $string['settings_header'] = 'Fraud detection measures';
-$string['settings_watermark_enable'] = 'Add watermarks to detect copied answers (experimental)';
+$string['settings_watermark_enable'] = 'Add watermarks to detect copied answers';
 $string['task_compact_attempt'] = 'Compact attempt data for watermark detection';
 
 $string['preflight_text'] = 'The exam is protected by security measures, which reveals your identity if you share answers or screenshots!';

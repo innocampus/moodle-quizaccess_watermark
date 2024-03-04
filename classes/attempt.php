@@ -161,16 +161,15 @@ class attempt {
     private static function find_attempt_hash(string $hash, int $quizid) {
         global $DB;
 
-        $userfields = get_all_user_name_fields(true, 'u');
-        $hash = $DB->sql_like_escape($hash);
-        $records = $DB->get_records_sql("
-            SELECT wa.*, $userfields
-            FROM {quizaccess_watermark_attempt} wa
-            LEFT JOIN {user} u ON (u.id = wa.userid)
-            WHERE wa.hash LIKE '{$hash}%' AND wa.quizid = :quiz
-        ", ['quiz' => $quizid]);
+        $userfields = \core_user\fields::for_name()->get_sql('u');
+        $sql = "SELECT wa.* {$userfields->selects}
+                  FROM {quizaccess_watermark_attempt} wa
+             LEFT JOIN {user} u ON (u.id = wa.userid)
+                 WHERE wa.hash LIKE '{$DB->sql_like_escape($hash)}%'
+                       AND wa.quizid = :quiz";
+        $records = $DB->get_records_sql($sql, ['quiz' => $quizid]);
 
-        if ($records === false || count($records) != 1) {
+        if (count($records) != 1) {
             return null;
         }
 

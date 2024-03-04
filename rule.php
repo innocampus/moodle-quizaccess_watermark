@@ -22,6 +22,10 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+use mod_quiz\form\preflight_check_form;
+use mod_quiz\local\access_rule_base;
+use mod_quiz\quiz_settings;
+
 defined('MOODLE_INTERNAL') || die();
 
 /**
@@ -30,18 +34,18 @@ defined('MOODLE_INTERNAL') || die();
  * @copyright  2021 Martin Gauk, TU Berlin <gauk@math.tu-berlin.de>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class quizaccess_watermark extends quiz_access_rule_base {
+class quizaccess_watermark extends access_rule_base {
 
     /**
      * Return an appropriately configured instance of this rule, if it is applicable
      * to the given quiz, otherwise return null.
-     * @param quiz $quizobj information about the quiz in question.
+     * @param quiz_settings $quizobj information about the quiz in question.
      * @param int $timenow the time that should be considered as 'now'.
      * @param bool $canignoretimelimits whether the current user is exempt from
      *      time limits by the mod/quiz:ignoretimelimits capability.
-     * @return quiz_access_rule_base|null the rule, if applicable, else null.
+     * @return access_rule_base|null the rule, if applicable, else null.
      */
-    public static function make(quiz $quizobj, $timenow, $canignoretimelimits) {
+    public static function make(quiz_settings $quizobj, $timenow, $canignoretimelimits) {
         if ($quizobj->get_quiz()->watermark_enabled) {
             return new self($quizobj, $timenow);
         }
@@ -72,7 +76,7 @@ class quizaccess_watermark extends quiz_access_rule_base {
         return $attemptid === null;
     }
 
-    public function add_preflight_check_form_fields(mod_quiz_preflight_check_form $quizform,
+    public function add_preflight_check_form_fields(preflight_check_form $quizform,
             MoodleQuickForm $mform, $attemptid) {
 
         $mform->addElement('header', 'watermarkheader',

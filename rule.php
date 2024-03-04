@@ -42,7 +42,7 @@ class quizaccess_watermark extends quiz_access_rule_base {
      * @return quiz_access_rule_base|null the rule, if applicable, else null.
      */
     public static function make(quiz $quizobj, $timenow, $canignoretimelimits) {
-        if ($quizobj->get_quiz()->watermark_enabled) {
+        if ($quizobj->get_quiz()->watermark_enabled ?? false) {
             return new self($quizobj, $timenow);
         }
         return null;

@@ -26,8 +26,6 @@ namespace quizaccess_watermark;
 
 defined('MOODLE_INTERNAL') || die();
 
-require_once($CFG->dirroot . '/mod/quiz/attemptlib.php');
-
 /**
  * Manager to implement the watermark.
  *

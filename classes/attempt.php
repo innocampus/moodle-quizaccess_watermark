@@ -24,6 +24,14 @@
 
 namespace quizaccess_watermark;
 
+use coding_exception;
+use core_user;
+use core_user\fields as user_fields;
+use dml_exception;
+use JsonException;
+use moodle_exception;
+use stdClass;
+
 defined('MOODLE_INTERNAL') || die();
 
 /**
@@ -33,25 +41,26 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class attempt {
-    /** @var \stdClass */
-    private $wmattempt;
-
     const DATA_MULTIPLE_ROWS = 0;
     const DATA_COMPACT = 1;
 
     const MIMINUM_HEX_CHARS = 4;
 
-    /** @var array saved json data (sorted by time) */
-    private $data = [];
+    private stdClass $wmattempt;
 
-    private $ownhash = '';
+    /** @var array saved json data (sorted by time) */
+    private array $data = [];
+
+    private string $ownhash;
 
     /**
      * attempt constructor.
      *
-     * @param \stdClass $wmattempt one db record of table quizaccess_watermark_attempt
+     * @param stdClass $wmattempt one db record of table quizaccess_watermark_attempt
+     * @throws JsonException
+     * @throws dml_exception
      */
-    public function __construct(\stdClass $wmattempt) {
+    public function __construct(stdClass $wmattempt) {
         global $DB;
 
         $this->wmattempt = $wmattempt;
@@ -62,7 +71,7 @@ class attempt {
             // There should be only one row.
             $uncompressed = gzuncompress(current($records)->json);
             if ($uncompressed === false) {
-                throw new \moodle_exception('gzuncompress_error', 'quizaccess_watermark');
+                throw new moodle_exception('gzuncompress_error', 'quizaccess_watermark');
             }
             $this->data = json_decode($uncompressed, false, 4, JSON_INVALID_UTF8_IGNORE|JSON_THROW_ON_ERROR);
 
@@ -81,27 +90,31 @@ class attempt {
      *
      * @param int $attemptid
      * @return attempt
+     * @throws dml_exception
      */
-    public static function get_from_quiz_attempt_id(int $attemptid) {
+    public static function get_from_quiz_attempt_id(int $attemptid): self {
         global $DB;
 
         $attempt = $DB->get_record('quizaccess_watermark_attempt', ['quizattemptid' => $attemptid]);
         if ($attempt === false) {
-            throw new \moodle_exception('attempt_not_found', 'quizaccess_watermark');
+            throw new moodle_exception('attempt_not_found', 'quizaccess_watermark');
         }
         return new self($attempt);
     }
 
-    public function get_quiz_id() : int {
+    public function get_quiz_id(): int {
         return $this->wmattempt->quizid;
     }
 
-    public function get_hash() : string {
+    public function get_hash(): string {
         return $this->ownhash;
     }
 
-    public function get_user_fullname() : string {
-        return fullname(\core_user::get_user($this->wmattempt->userid));
+    /**
+     * @throws dml_exception
+     */
+    public function get_user_fullname(): string {
+        return fullname(core_user::get_user($this->wmattempt->userid));
     }
 
     /**
@@ -109,16 +122,18 @@ class attempt {
      *
      * Deletes the old rows and inserts one row with all the data as a gz-compressed json.
      *
+     * @throws dml_exception
+     * @throws JsonException
      */
-    public function compact_and_save() {
+    public function compact_and_save(): void {
         global $DB;
 
         $newdata = json_encode($this->data, JSON_INVALID_UTF8_IGNORE|JSON_THROW_ON_ERROR, 4);
         $newdata = gzcompress($newdata, 9);
         if ($newdata === false) {
-            throw new \moodle_exception('gzcompress_error', 'quizaccess_watermark');
+            throw new moodle_exception('gzcompress_error', 'quizaccess_watermark');
         }
-        $record = new \stdClass();
+        $record = new stdClass();
         $record->usageid = $this->wmattempt->usageid;
         $record->json = $newdata;
 
@@ -134,35 +149,38 @@ class attempt {
      * Find all watermarks in all answers that do not belong to the user.
      *
      * @return array
+     * @throws dml_exception
      */
-    public function find_foreign_watermarks() : array {
+    public function find_foreign_watermarks(): array {
         $found = [];
         foreach ($this->data as $step) {
-            foreach ($step->data as $key => $answer) {
+            foreach ($step->data as $answer) {
                 if (is_string($answer)) {
                     foreach (self::find_watermarks_in_string($answer) as $watermark) {
-                        if (substr($this->ownhash, 0, strlen($watermark)) != $watermark) {
+                        if (!str_starts_with($this->ownhash, $watermark)) {
                             $hit = self::find_attempt_hash($watermark, $this->get_quiz_id());
                             $found[] = [
-                                    'date' => $step->time,
-                                    'answer' => $answer,
-                                    'watermark' => $watermark,
-                                    'hit' => $hit,
+                                'date' => $step->time,
+                                'answer' => $answer,
+                                'watermark' => $watermark,
+                                'hit' => $hit,
                             ];
                         }
                     }
                 }
             }
         }
-
         return $found;
     }
 
-    private static function find_attempt_hash(string $hash, int $quizid) {
+    /**
+     * @throws dml_exception
+     */
+    private static function find_attempt_hash(string $hash, int $quizid): ?array {
         global $DB;
 
-        $userfields = \core_user\fields::for_name()->get_sql('u');
-        $sql = "SELECT wa.* {$userfields->selects}
+        $userfields = user_fields::for_name()->get_sql('u');
+        $sql = "SELECT wa.* $userfields->selects
                   FROM {quizaccess_watermark_attempt} wa
              LEFT JOIN {user} u ON (u.id = wa.userid)
                  WHERE wa.hash LIKE '{$DB->sql_like_escape($hash)}%'
@@ -185,14 +203,14 @@ class attempt {
      * Find and extract watermarks in a string.
      *
      * @param string $str
-     * @return array
+     * @return string[]
      */
-    private static function find_watermarks_in_string(string $str) : array {
+    private static function find_watermarks_in_string(string $str): array {
         $watermarks = [];
         $matches = [];
         $ok = preg_match_all('/[\x{2060}-\x{2063}]{1,16}/u', $str, $matches, PREG_PATTERN_ORDER);
         if ($ok === false) {
-            throw new \moodle_exception('find_watermark_regex_error1', 'quizaccess_watermark');
+            throw new moodle_exception('find_watermark_regex_error1', 'quizaccess_watermark');
         }
         foreach($matches[0] as $match) {
             $hex = self::get_hex($match, 0x2060);
@@ -204,7 +222,7 @@ class attempt {
         $matches = [];
         $ok = preg_match_all('/[\x{E0061}-\x{E0070}]{1,16}/u', $str, $matches, PREG_PATTERN_ORDER);
         if ($ok === false) {
-            throw new \moodle_exception('find_watermark_regex_error2', 'quizaccess_watermark');
+            throw new moodle_exception('find_watermark_regex_error2', 'quizaccess_watermark');
         }
         foreach($matches[0] as $match) {
             $hex = self::get_hex($match, 0xE0061);
@@ -223,7 +241,7 @@ class attempt {
      * @param int $base
      * @return string
      */
-    private static function get_hex(string $str, int $base) : string {
+    private static function get_hex(string $str, int $base): string {
         $hexstring = '';
         $ordbefore = 0;
         foreach (mb_str_split($str) as $char) {
@@ -240,11 +258,15 @@ class attempt {
                 $hexstring .= dechex($ord - $base);
             }
         }
-
         return $hexstring;
     }
 
-    public static function find_all_users_with_foreign_watermarks(int $quizid) {
+    /**
+     * @return array[]
+     * @throws coding_exception
+     * @throws dml_exception
+     */
+    public static function find_all_users_with_foreign_watermarks(int $quizid): array {
         global $DB;
 
         $found = [];
@@ -264,7 +286,10 @@ class attempt {
         return $found;
     }
 
-    private static function get_unique_found_users(array $hits) {
+    /**
+     * @throws coding_exception
+     */
+    private static function get_unique_found_users(array $hits): string {
         $users = [];
         foreach ($hits as $hit) {
             if ($hit['hit']) {

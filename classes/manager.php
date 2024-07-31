@@ -24,6 +24,12 @@
 
 namespace quizaccess_watermark;
 
+use coding_exception;
+use dml_exception;
+use mod_quiz\event\attempt_deleted;
+use mod_quiz\event\attempt_started;
+use stdClass;
+
 defined('MOODLE_INTERNAL') || die();
 
 /**
@@ -36,20 +42,21 @@ class manager {
     /**
      * @var bool Already saved POST data of this page call.
      */
-    private static $savedpostdata = false;
+    private static bool $savedpostdata = false;
 
     /**
      * @var null|bool Watermark is enabled for the quiz on this page.
      */
-    private static $watermarkenabled = null;
+    private static ?bool $watermarkenabled = null;
 
     /**
      * Check if watermark is enabled for the quiz.
      *
      * @param $usageid
      * @return bool
+     * @throws dml_exception
      */
-    private static function watermark_enabled($usageid) {
+    private static function watermark_enabled($usageid): bool {
         if (self::$watermarkenabled === null) {
             global $DB;
             self::$watermarkenabled = $DB->record_exists('quizaccess_watermark_attempt', ['usageid' => $usageid]);
@@ -57,6 +64,9 @@ class manager {
         return self::$watermarkenabled;
     }
 
+    /**
+     * @throws dml_exception
+     */
     private static function watermark_enabled_quiz($quizid) {
         if (self::$watermarkenabled === null) {
             global $DB;
@@ -73,8 +83,9 @@ class manager {
      *
      * @param int $usageid
      * @param $postdata
+     * @throws dml_exception
      */
-    public static function save_post_data(int $usageid, $postdata) {
+    public static function save_post_data(int $usageid, $postdata): void {
         if (!self::$savedpostdata) {
             self::$savedpostdata = true;
             if (!self::watermark_enabled($usageid)) {
@@ -82,8 +93,8 @@ class manager {
             }
 
             // Only quiz autosave and processattempt.
-            if (substr($_SERVER['SCRIPT_FILENAME'], -17) !== 'autosave.ajax.php' &&
-                substr($_SERVER['SCRIPT_FILENAME'], -18) !== 'processattempt.php') {
+            if (!str_ends_with($_SERVER['SCRIPT_FILENAME'], 'autosave.ajax.php') &&
+                !str_ends_with($_SERVER['SCRIPT_FILENAME'], 'processattempt.php')) {
                 return;
             }
 
@@ -96,7 +107,7 @@ class manager {
                 'data' => $postdata,
                 'sessionid' => session_id(),
             ];
-            $record = new \stdClass();
+            $record = new stdClass();
             $record->usageid = $usageid;
             $record->json = json_encode($json, JSON_INVALID_UTF8_IGNORE, 4);
 
@@ -113,8 +124,9 @@ class manager {
      * @param int $usageid question usage id
      * @param array $data
      * @return array
+     * @throws dml_exception
      */
-    public static function clean_answer_data(int $usageid, array $data) : array {
+    public static function clean_answer_data(int $usageid, array $data): array {
         // Check POST because self::watermark_enabled returns false for preview attempts.
         if (isset($_POST['quizaccess_watermark_enable_clean']) || self::watermark_enabled($usageid)) {
             $new = [];
@@ -140,8 +152,9 @@ class manager {
      * @param int $userid
      * @param bool $forcenew
      * @return string
+     * @throws dml_exception
      */
-    public static function get_user_hash(bool $isteacher, int $quizid, int $userid, bool $forcenew = false) {
+    public static function get_user_hash(bool $isteacher, int $quizid, int $userid, bool $forcenew = false): string {
         global $SESSION, $DB;
         if ($isteacher) {
             return md5($userid);
@@ -151,11 +164,11 @@ class manager {
             if (isset($SESSION->quizaccess_watermark[$quizid])) {
                 return $SESSION->quizaccess_watermark[$quizid];
             }
-            $records = $DB->get_records_sql('
-                SELECT hash
-                FROM {quizaccess_watermark_attempt}
-                WHERE userid = :user AND quizid = :quiz
-                ORDER BY timecreated DESC', ['user' => $userid, 'quiz' => $quizid], 0, 1);
+            $sql = "SELECT hash
+                      FROM {quizaccess_watermark_attempt}
+                     WHERE userid = :user AND quizid = :quiz
+                  ORDER BY timecreated DESC";
+            $records = $DB->get_records_sql($sql, ['user' => $userid, 'quiz' => $quizid], 0, 1);
             if (count($records)) {
                 $hash = current($records);
                 $SESSION->quizaccess_watermark[$quizid] = $hash;
@@ -173,9 +186,11 @@ class manager {
     /**
      * Event observer when a quiz attempt was started.
      *
-     * @param \mod_quiz\event\attempt_started $event
+     * @param attempt_started $event
+     * @throws coding_exception
+     * @throws dml_exception
      */
-    public static function attempt_started(\mod_quiz\event\attempt_started $event) {
+    public static function attempt_started(attempt_started $event): void {
         global $DB;
 
         $attempt = $event->get_record_snapshot('quiz_attempts', $event->objectid);
@@ -183,7 +198,7 @@ class manager {
             return;
         }
 
-        $data = new \stdClass();
+        $data = new stdClass();
         $data->hash = self::get_user_hash(false, $attempt->quiz, $attempt->userid, true);
         $data->quizid = $attempt->quiz;
         $data->quizattemptid = $attempt->id;
@@ -197,9 +212,10 @@ class manager {
     /**
      * Event observer when a quiz attempt was deleted.
      *
-     * @param \mod_quiz\event\attempt_deleted $event
+     * @param attempt_deleted $event
+     * @throws dml_exception
      */
-    public static function attempt_deleted(\mod_quiz\event\attempt_deleted $event) {
+    public static function attempt_deleted(attempt_deleted $event): void {
         global $DB;
         $wmattempt = $DB->get_record('quizaccess_watermark_attempt', ['quizattemptid' => $event->objectid]);
         if ($wmattempt) {

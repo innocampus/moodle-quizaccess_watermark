@@ -23,11 +23,14 @@
  */
 namespace quizaccess_watermark\task;
 
-use quizaccess_watermark\attempt;
+use coding_exception;
+use core\task\scheduled_task;
+use dml_exception;
+use JsonException;
+use mod_quiz\quiz_attempt;
+use quizaccess_watermark\attempt as watermark_attempt;
 
 defined('MOODLE_INTERNAL') || die();
-
-require_once($CFG->dirroot . '/mod/quiz/attemptlib.php');
 
 /**
  * Compact the answers in one quiz attempt to save space.
@@ -37,28 +40,33 @@ require_once($CFG->dirroot . '/mod/quiz/attemptlib.php');
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  *
  */
-class compact_attempt extends \core\task\scheduled_task {
+class compact_attempt extends scheduled_task {
 
-    public function get_name() {
+    /**
+     * @throws coding_exception
+     */
+    public function get_name(): string {
         return get_string('task_compact_attempt', 'quizaccess_watermark');
     }
 
-    public function execute() {
+    /**
+     * @throws coding_exception
+     * @throws dml_exception
+     * @throws JsonException
+     */
+    public function execute(): void {
         global $DB;
-
-        list($insql, $params) = $DB->get_in_or_equal([\quiz_attempt::FINISHED, \quiz_attempt::ABANDONED], SQL_PARAMS_NAMED);
-        $params['mrows'] = attempt::DATA_MULTIPLE_ROWS;
-
-        $records = $DB->get_records_sql('
-            SELECT wm.*
-            FROM {quizaccess_watermark_attempt} wm
-            JOIN {quiz_attempts} a ON (a.id = wm.quizattemptid)
-            WHERE wm.compact = :mrows AND a.state ' . $insql . '
-        ', $params);
-
+        [$insql, $params] = $DB->get_in_or_equal([quiz_attempt::FINISHED, quiz_attempt::ABANDONED], SQL_PARAMS_NAMED);
+        $sql = "SELECT wm.*
+                  FROM {quizaccess_watermark_attempt} wm
+                  JOIN {quiz_attempts} a ON (a.id = wm.quizattemptid)
+                 WHERE wm.compact = :mrows
+                       AND a.state $insql";
+        $params['mrows'] = watermark_attempt::DATA_MULTIPLE_ROWS;
+        $records = $DB->get_records_sql($sql, $params);
         foreach ($records as $record) {
-            mtrace("  Compact watermark attempt id {$record->id}");
-            $attempt = new attempt($record);
+            mtrace("  Compact watermark attempt id $record->id");
+            $attempt = new watermark_attempt($record);
             $attempt->compact_and_save();
         }
     }

@@ -164,13 +164,16 @@ class manager {
             if (isset($SESSION->quizaccess_watermark[$quizid])) {
                 return $SESSION->quizaccess_watermark[$quizid];
             }
-            $sql = "SELECT hash
-                      FROM {quizaccess_watermark_attempt}
-                     WHERE userid = :user AND quizid = :quiz
-                  ORDER BY timecreated DESC";
-            $records = $DB->get_records_sql($sql, ['user' => $userid, 'quiz' => $quizid], 0, 1);
-            if (count($records)) {
-                $hash = current($records);
+            $records = $DB->get_records(
+                table: 'quizaccess_watermark_attempt',
+                conditions: ['userid' => $userid, 'quizid' => $quizid],
+                sort: 'timecreated DESC',
+                fields: 'hash',
+                limitnum: 1,
+            );
+            // If the array is not empty, it should have exactly one value of type `stdClass`.
+            // Since we only selected the `hash` field above, the key should be that hash.
+            if ($hash = array_key_first($records)) {
                 $SESSION->quizaccess_watermark[$quizid] = $hash;
                 return $hash;
             }

@@ -31,7 +31,7 @@ $string['watermark:view_reports'] = 'Wasserzeichen-Bericht sehen';
 
 $string['settings_header'] = 'Maßnahmen zur Betrugserkennung';
 $string['settings_watermark_enable'] = 'Wasserzeichen hinzufügen, um kopierte Antworten erkennen zu können';
-$string['task_compact_attempt'] = 'Komprimiere die Daten der Wasserzeichen-Erkennung';
+$string['task_compact_attempt'] = 'Komprimieren und Aufräumen der Daten der Wasserzeichen-Erkennung';
 
 $string['preflight_text'] = 'Dieser Test wird durch Sicherheitsmaßnahmen geschützt, mit denen Sie identifiziert werden können, wenn Sie Antworten oder Screenshots mit anderen teilen!';
 

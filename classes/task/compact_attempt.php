@@ -33,7 +33,7 @@ use quizaccess_watermark\attempt as watermark_attempt;
 defined('MOODLE_INTERNAL') || die();
 
 /**
- * Compact the answers in one quiz attempt to save space.
+ * Compact the answers in quiz attempts to save space and delete old data.
  *
  * @package    quizaccess_watermark
  * @copyright  2021 Martin Gauk, TU Berlin <gauk@math.tu-berlin.de>
@@ -56,6 +56,8 @@ class compact_attempt extends scheduled_task {
      */
     public function execute(): void {
         global $DB;
+
+        // Compress answers in finished/abandoned attempts.
         [$insql, $params] = $DB->get_in_or_equal([quiz_attempt::FINISHED, quiz_attempt::ABANDONED], SQL_PARAMS_NAMED);
         $sql = "SELECT wm.*
                   FROM {quizaccess_watermark_attempt} wm
@@ -69,5 +71,21 @@ class compact_attempt extends scheduled_task {
             $attempt = new watermark_attempt($record);
             $attempt->compact_and_save();
         }
+
+        // Delete data belonging to quiz attempts or question usages that do not exist anymore.
+        $transaction = $DB->start_delegated_transaction();
+        $sql = "SELECT wm.usageid
+                  FROM {quizaccess_watermark_attempt} wm
+             LEFT JOIN {quiz_attempts} a ON (a.id = wm.quizattemptid)
+             LEFT JOIN {question_usages} u ON (u.id = wm.usageid)
+                 WHERE a.id IS NULL OR u.id IS NULL";
+        $records = $DB->get_records_sql($sql, null, 0, 50000);
+        $usageids = array_column($records, 'usageid');
+        if (!empty($usageids)) {
+            mtrace('  Delete watermark data (' . count($usageids) .' rows) with usageids: ' . implode(', ', $usageids));
+            $DB->delete_records_list('quizaccess_watermark_data', 'usageid', $usageids);
+            $DB->delete_records_list('quizaccess_watermark_attempt', 'usageid', $usageids);
+        }
+        $transaction->allow_commit();
     }
 }

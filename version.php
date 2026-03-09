@@ -26,6 +26,6 @@ defined('MOODLE_INTERNAL') || die();
 
 $plugin->version = 2021030300;
 $plugin->requires = 2023100900;  // Moodle 4.3.0
-$plugin->supported = [403, 404];
+$plugin->supported = [403, 501];
 $plugin->component = 'quizaccess_watermark';
 $plugin->maturity = MATURITY_ALPHA;
